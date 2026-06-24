@@ -235,51 +235,46 @@ export function ProjectView({ projectId }: { projectId: number }) {
                 }
                 
                 // --- PROPORTIONAL GAP PRESERVATION ---
-                let baselineSum = 0;
-                let baselineCount = 0;
+                let normalSum = 0;
+                let normalCount = 0;
                 for (let i = 0; i < data.length; i++) {
                     for (let j = i + 1; j < data.length; j++) {
                         let gapAsli = Math.abs(data[i].asli - data[j].asli);
                         if (gapAsli >= 3) {
                             let gapKatrol = Math.abs(data[i].katrol - data[j].katrol);
-                            baselineSum += gapKatrol / gapAsli;
-                            baselineCount++;
+                            if (data[i].katrol > 71 && data[i].katrol < 86 && data[j].katrol > 71 && data[j].katrol < 86) {
+                                normalSum += gapKatrol / gapAsli;
+                                normalCount++;
+                            }
                         }
                     }
                 }
-                const baselineRatio = baselineCount > 0 ? baselineSum / baselineCount : 0;
+                
+                let baselineRatio = normalCount > 0 ? normalSum / normalCount : 0.4;
 
-                if (baselineRatio > 0) {
-                    for (let i = 0; i < data.length; i++) {
-                        for (let j = i + 1; j < data.length; j++) {
-                            let gapAsli = Math.abs(data[i].asli - data[j].asli);
-                            if (gapAsli >= 3) {
-                                let gapKatrol = Math.abs(data[i].katrol - data[j].katrol);
-                                let ratio = gapKatrol / gapAsli;
-                                
-                                if (ratio < 0.25 * baselineRatio) {
-                                    let minGap = Math.ceil(gapAsli * baselineRatio * 0.5);
-                                    if (gapKatrol < minGap) {
-                                        let higherIndex = j;
-                                        let lowerIndex = i;
-                                        if (data[i].katrol > data[j].katrol) {
-                                            higherIndex = i;
-                                            lowerIndex = j;
-                                        }
-
-                                        let newKatrolLower = data[higherIndex].katrol - minGap;
-                                        if (newKatrolLower < 71) {
-                                            let proposedHigher = data[higherIndex].katrol + (71 - newKatrolLower);
-                                            if (proposedHigher > 86) {
-                                                data[higherIndex].katrol = 86;
-                                                data[lowerIndex].katrol = 71;
-                                            } else {
-                                                data[higherIndex].katrol = proposedHigher;
-                                                data[lowerIndex].katrol = 71;
-                                            }
+                for (let i = data.length - 1; i >= 0; i--) {
+                    for (let j = i - 1; j >= 0; j--) {
+                        let gapAsli = data[i].asli - data[j].asli;
+                        if (gapAsli >= 3) {
+                            let gapKatrol = data[i].katrol - data[j].katrol;
+                            let ratio = gapKatrol / gapAsli;
+                            
+                            if (ratio < 0.25 * baselineRatio) {
+                                let minGap = Math.ceil(gapAsli * baselineRatio * 0.5);
+                                if (gapKatrol < minGap) {
+                                    let newKatrolLower = data[i].katrol - minGap;
+                                    if (newKatrolLower < 71) {
+                                        let deficit = 71 - newKatrolLower;
+                                        let proposedHigher = data[i].katrol + deficit;
+                                        if (proposedHigher > 86) {
+                                            data[i].katrol = 86;
+                                            data[j].katrol = 71;
                                         } else {
-                                            data[lowerIndex].katrol = newKatrolLower;
+                                            data[i].katrol = proposedHigher;
+                                            data[j].katrol = 71;
                                         }
+                                    } else {
+                                        data[j].katrol = newKatrolLower;
                                     }
                                 }
                             }
