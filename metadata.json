@@ -1,0 +1,6 @@
+{
+  "name": "Katrol Nilai by Aqli",
+  "description": "Alat Bantu Rekap & Kalkulasi Nilai Rapor Otomatis",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

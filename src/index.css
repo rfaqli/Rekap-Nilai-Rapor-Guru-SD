@@ -1,0 +1,51 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --color-brand-red: #E62129;
+  --color-brand-maroon: #A31D21;
+  --color-brand-pink: #FFD1DC;
+  --color-brand-gold: #FFD700;
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+}
+
+body {
+  font-family: "Inter", sans-serif;
+  background-color: #F3F4F6;
+  color: #0f172a;
+  overflow: hidden;
+  height: 100vh;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #E62129;
+  border-radius: 10px;
+}
+
+.gold-rank {
+  background: linear-gradient(135deg, #FFD700 0%, #FDB931 100%);
+}
+.silver-rank {
+  background: linear-gradient(135deg, #C0C0C0 0%, #A9A9A9 100%);
+}
+.bronze-rank {
+  background: linear-gradient(135deg, #CD7F32 0%, #8B4513 100%);
+}
+
+/* Force show number input spin buttons */
+input[type=number]::-webkit-inner-spin-button, 
+input[type=number]::-webkit-outer-spin-button { 
+  -webkit-appearance: inner-spin-button !important; 
+  opacity: 1 !important;
+  height: 100%;
+}
+input[type=number] {
+  -moz-appearance: number-input !important;
+}
