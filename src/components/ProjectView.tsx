@@ -266,15 +266,28 @@ export function ProjectView({ projectId }: { projectId: number }) {
                                     if (newKatrolLower < 71) {
                                         let deficit = 71 - newKatrolLower;
                                         let proposedHigher = data[i].katrol + deficit;
-                                        if (proposedHigher > 86) {
-                                            data[i].katrol = 86;
-                                            data[j].katrol = 71;
-                                        } else {
-                                            data[i].katrol = proposedHigher;
-                                            data[j].katrol = 71;
-                                        }
+                                        data[i].katrol = proposedHigher > 86 ? 86 : proposedHigher;
+                                        data[j].katrol = 71;
                                     } else {
                                         data[j].katrol = newKatrolLower;
+                                    }
+
+                                    // TOP-DOWN CASCADE: Segera dorong nilai di bawahnya agar ranking tidak rusak
+                                    for (let k = j - 1; k >= 0; k--) {
+                                        if (data[k].asli < data[k+1].asli && data[k].katrol >= data[k+1].katrol) {
+                                            data[k].katrol = Math.max(71, data[k+1].katrol - 1);
+                                        } else if (data[k].asli === data[k+1].asli) {
+                                            data[k].katrol = data[k+1].katrol;
+                                        }
+                                    }
+
+                                    // BOTTOM-UP CASCADE: Jika data[i] terdorong ke atas, dorong nilai di atasnya
+                                    for (let k = i + 1; k < data.length; k++) {
+                                        if (data[k].asli > data[k-1].asli && data[k].katrol <= data[k-1].katrol) {
+                                            data[k].katrol = Math.min(86, data[k-1].katrol + 1);
+                                        } else if (data[k].asli === data[k-1].asli) {
+                                            data[k].katrol = data[k-1].katrol;
+                                        }
                                     }
                                 }
                             }
@@ -282,7 +295,7 @@ export function ProjectView({ projectId }: { projectId: number }) {
                     }
                 }
 
-                // Re-validate global ranking after gap adjustments
+                // Re-validate global ranking (Dua arah agar tidak merusak gap yang baru dibuat)
                 for (let i = 1; i < data.length; i++) {
                     if (data[i].asli > data[i-1].asli) {
                         if (data[i].katrol <= data[i-1].katrol) {
@@ -290,6 +303,15 @@ export function ProjectView({ projectId }: { projectId: number }) {
                         }
                     } else if (data[i].asli === data[i-1].asli) {
                         data[i].katrol = data[i-1].katrol;
+                    }
+                }
+                for (let i = data.length - 2; i >= 0; i--) {
+                    if (data[i].asli < data[i+1].asli) {
+                        if (data[i].katrol >= data[i+1].katrol) {
+                            data[i].katrol = Math.max(71, data[i+1].katrol - 1);
+                        }
+                    } else if (data[i].asli === data[i+1].asli) {
+                        data[i].katrol = data[i+1].katrol;
                     }
                 }
 
