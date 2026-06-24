@@ -43,12 +43,13 @@ export function getPool(): Pool | null {
     const database = process.env.PGDATABASE || process.env.STORAGE_PGDATABASE || process.env.SQL_DB_NAME;
 
     if (host && user && password && database) {
+      const isUnixSocket = host.startsWith('/');
       _pool = new Pool({
         host,
         user,
         password,
         database,
-        ssl: { rejectUnauthorized: false },
+        ...(isUnixSocket ? {} : { ssl: { rejectUnauthorized: false } }),
         max: 1,
         connectionTimeoutMillis: 10000,
       });
