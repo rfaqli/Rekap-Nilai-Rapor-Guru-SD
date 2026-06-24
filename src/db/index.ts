@@ -4,13 +4,14 @@ import * as schema from './schema';
 import bcrypt from 'bcryptjs';
 
 export const createPool = () => {
-  if (process.env.POSTGRES_URL || process.env.DATABASE_URL) {
+  if (process.env.POSTGRES_URL || process.env.DATABASE_URL || process.env.STORAGE_URL) {
+    const url = process.env.POSTGRES_URL || process.env.DATABASE_URL || process.env.STORAGE_URL;
     return new Pool({
-      connectionString: process.env.POSTGRES_URL || process.env.DATABASE_URL,
+      connectionString: url,
       ssl: {
         rejectUnauthorized: false
       },
-      connectionTimeoutMillis: 15000,
+      connectionTimeoutMillis: 5000,
     });
   }
 
@@ -20,7 +21,7 @@ export const createPool = () => {
       user: process.env.SQL_USER,
       password: process.env.SQL_PASSWORD,
       database: process.env.SQL_DB_NAME,
-      connectionTimeoutMillis: 15000,
+      connectionTimeoutMillis: 5000,
     });
   }
 
