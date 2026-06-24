@@ -4,8 +4,21 @@ import * as schema from './schema';
 import bcrypt from 'bcryptjs';
 
 export const createPool = () => {
-  if (process.env.POSTGRES_URL || process.env.DATABASE_URL || process.env.STORAGE_URL) {
-    const url = process.env.POSTGRES_URL || process.env.DATABASE_URL || process.env.STORAGE_URL;
+  // Try to find any environment variable that looks like a postgres connection string
+  let url = process.env.POSTGRES_URL || process.env.DATABASE_URL || process.env.STORAGE_URL || process.env.STORAGE_DATABASE_URL || process.env.NEON_DATABASE_URL;
+  
+  if (!url) {
+    const postgresKeys = Object.keys(process.env).filter(k => 
+      (k.includes('URL') || k.includes('POSTGRES') || k.includes('DATABASE') || k.includes('STORAGE')) && 
+      typeof process.env[k] === 'string' && 
+      process.env[k]!.startsWith('postgres')
+    );
+    if (postgresKeys.length > 0) {
+      url = process.env[postgresKeys[0]];
+    }
+  }
+
+  if (url) {
     return new Pool({
       connectionString: url,
       ssl: {
@@ -15,12 +28,21 @@ export const createPool = () => {
     });
   }
 
-  if (process.env.SQL_HOST) {
+  // Fallback to individual pg credentials if prefix is known or standard
+  const host = process.env.PGHOST || process.env.STORAGE_PGHOST || process.env.SQL_HOST;
+  const user = process.env.PGUSER || process.env.STORAGE_PGUSER || process.env.SQL_USER;
+  const password = process.env.PGPASSWORD || process.env.STORAGE_PGPASSWORD || process.env.SQL_PASSWORD;
+  const database = process.env.PGDATABASE || process.env.STORAGE_PGDATABASE || process.env.SQL_DB_NAME;
+
+  if (host && user && password && database) {
     return new Pool({
-      host: process.env.SQL_HOST,
-      user: process.env.SQL_USER,
-      password: process.env.SQL_PASSWORD,
-      database: process.env.SQL_DB_NAME,
+      host,
+      user,
+      password,
+      database,
+      ssl: {
+        rejectUnauthorized: false
+      },
       connectionTimeoutMillis: 5000,
     });
   }

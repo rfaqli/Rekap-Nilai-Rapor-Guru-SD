@@ -64,7 +64,13 @@ const authenticateToken = (req: express.Request, res: express.Response, next: ex
 
 const checkDb = (req: express.Request, res: express.Response, next: express.NextFunction) => {
   if (!db) {
-    res.status(500).json({ error: "Database belum terhubung. Silakan klik menu 'Storage' di Vercel Dashboard dan buat Postgres database. Vercel akan otomatis menyambungkan database ke aplikasi ini." });
+    const keys = Object.keys(process.env).filter(k => 
+      k.includes('URL') || k.includes('POSTGRES') || k.includes('DATABASE') || 
+      k.includes('STORAGE') || k.includes('NEON') || k.includes('PG')
+    );
+    res.status(500).json({ 
+      error: `Database belum terhubung. Vercel env keys yang tersedia: ${keys.join(', ')}. Pastikan Vercel Postgres/Neon sudah dibuat dan Prefix environment variables sesuai.` 
+    });
     return;
   }
   next();
