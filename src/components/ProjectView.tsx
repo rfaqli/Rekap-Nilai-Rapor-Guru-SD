@@ -30,16 +30,6 @@ const calcRaporAkhir = (student: any) => {
     return parseFloat((sum / count).toFixed(1));
 };
 
-const piecewiseDecimal = (val: number | null): number | null => {
-    if (val === null) return null;
-    let target = 0;
-    if (val <= 40) target = 60 + ((val - 0) / (40 - 0)) * (70 - 60);
-    else if (val <= 60) target = 71 + ((val - 41) / (60 - 41)) * (78 - 71);
-    else if (val <= 80) target = 79 + ((val - 61) / (80 - 61)) * (88 - 79);
-    else target = 89 + ((val - 81) / (100 - 81)) * (100 - 89);
-    return target;
-};
-
 
 export function ProjectView({ projectId }: { projectId: number }) {
     const [project, setProject] = useState<Project | null>(null);
@@ -143,164 +133,105 @@ export function ProjectView({ projectId }: { projectId: number }) {
     const handleKatrol = () => {
         let newStudents = JSON.parse(JSON.stringify(students));
         
-        subjectsList.forEach((_, mId) => {
-            const subKey = `mapel_${mId}`;
-            
-            let studentsNaik: any[] = [];
-            let studentsTidakNaik: any[] = [];
-            
-            newStudents.forEach((student: any) => {
-                if (student.tidakNaikKelas) studentsTidakNaik.push(student);
-                else studentsNaik.push(student);
-            });
-            
-            // --- BAGIAN A: SISWA NAIK KELAS ---
-            let mapelDataNaik: any[] = [];
-            
-            studentsNaik.forEach(student => {
-                const subAsli = student?.subjects?.[subKey] || { TGS: null, UH: null, UTS: null, SAJ: null };
-                const presentKeys = ['TGS', 'UH', 'UTS', 'SAJ'].filter(k => subAsli[k] !== null && subAsli[k] !== undefined);
-                
-                if (presentKeys.length === 0) return;
-                
-                let tempComps: any = {};
-                presentKeys.forEach(k => {
-                    tempComps[k] = piecewiseDecimal(subAsli[k]);
-                });
-                
-                const rawAvg = presentKeys.reduce((acc, k) => acc + tempComps[k], 0) / presentKeys.length;
-                const asliAvg = presentKeys.reduce((acc, k) => acc + subAsli[k], 0) / presentKeys.length;
-                
-                mapelDataNaik.push({
-                    studentId: student.id,
-                    asliAvg: asliAvg,
-                    rawAvg: rawAvg,
-                    tempComps: tempComps,
-                    presentKeys: presentKeys,
-                    subAsli: subAsli,
-                    scaled: 0,
-                    finalKatrol: 0,
-                });
-            });
-            
-            if (mapelDataNaik.length > 0) {
-                const rawMin = Math.min(...mapelDataNaik.map(d => d.rawAvg));
-                const rawMax = Math.max(...mapelDataNaik.map(d => d.rawAvg));
-                
-                mapelDataNaik.forEach(d => {
-                    if (rawMax === rawMin) {
-                        d.scaled = 79;
-                    } else {
-                        d.scaled = 71 + ((d.rawAvg - rawMin) / (rawMax - rawMin)) * (86 - 71);
-                    }
-                });
-                
-                mapelDataNaik.forEach(d => {
-                    d.scaled = Math.round(d.scaled * 10) / 10;
-                });
-                
-                mapelDataNaik.sort((a, b) => a.asliAvg - b.asliAvg);
-                
-                let collisionResolved = false;
-                while (!collisionResolved) {
-                    collisionResolved = true;
-                    for (let i = 1; i < mapelDataNaik.length; i++) {
-                        if (mapelDataNaik[i].asliAvg > mapelDataNaik[i-1].asliAvg) {
-                            if (mapelDataNaik[i].scaled <= mapelDataNaik[i-1].scaled) {
-                                mapelDataNaik[i].scaled = Math.round((mapelDataNaik[i-1].scaled + 0.1) * 10) / 10;
-                                collisionResolved = false;
-                            }
-                        } else if (mapelDataNaik[i].asliAvg === mapelDataNaik[i-1].asliAvg) {
-                            if (mapelDataNaik[i].scaled !== mapelDataNaik[i-1].scaled) {
-                                mapelDataNaik[i].scaled = mapelDataNaik[i-1].scaled;
-                            }
-                        }
+        let studentsNaik: any[] = [];
+        let studentsTidakNaik: any[] = [];
+        
+        newStudents.forEach((student: any) => {
+            if (student.tidakNaikKelas) studentsTidakNaik.push(student);
+            else studentsNaik.push(student);
+        });
+        
+        // BAGIAN A - SISWA NAIK KELAS
+        // 1a. Hitung NR_Rata_Asli per siswa
+        studentsNaik.forEach(student => {
+            let sumNR = 0;
+            let countMapel = 0;
+            subjectsList.forEach((_, mId) => {
+                const subKey = `mapel_${mId}`;
+                const subAsli = student?.subjects?.[subKey];
+                if (subAsli) {
+                    const presentKeys = ['TGS', 'UH', 'UTS', 'SAJ'].filter(k => subAsli[k] !== null && subAsli[k] !== undefined);
+                    if (presentKeys.length > 0) {
+                        const sumComps = presentKeys.reduce((acc, k) => acc + subAsli[k], 0);
+                        const nr = sumComps / presentKeys.length;
+                        sumNR += nr;
+                        countMapel++;
                     }
                 }
-                
-                mapelDataNaik.forEach(d => {
-                    d.finalKatrol = Math.round(d.scaled);
-                });
-                
-                collisionResolved = false;
-                while (!collisionResolved) {
-                    collisionResolved = true;
-                    for (let i = 1; i < mapelDataNaik.length; i++) {
-                        if (mapelDataNaik[i].asliAvg > mapelDataNaik[i-1].asliAvg) {
-                            if (mapelDataNaik[i].finalKatrol <= mapelDataNaik[i-1].finalKatrol) {
-                                mapelDataNaik[i].finalKatrol = mapelDataNaik[i-1].finalKatrol + 1;
-                                collisionResolved = false;
-                            }
-                        } else if (mapelDataNaik[i].asliAvg === mapelDataNaik[i-1].asliAvg) {
-                            if (mapelDataNaik[i].finalKatrol !== mapelDataNaik[i-1].finalKatrol) {
-                                mapelDataNaik[i].finalKatrol = mapelDataNaik[i-1].finalKatrol;
-                            }
-                        }
-                    }
+            });
+            student.nrRataAsli = countMapel > 0 ? sumNR / countMapel : 0;
+        });
+
+        // 1b. Urutkan & tetapkan Rank
+        studentsNaik.sort((a, b) => b.nrRataAsli - a.nrRataAsli);
+        
+        let currentRank = 1;
+        if (studentsNaik.length > 0) {
+            studentsNaik[0].rank = currentRank;
+            for (let i = 1; i < studentsNaik.length; i++) {
+                if (studentsNaik[i].nrRataAsli < studentsNaik[i-1].nrRataAsli) {
+                    currentRank++;
                 }
-                
-                mapelDataNaik.forEach(d => {
-                    const delta = d.finalKatrol - d.rawAvg;
-                    let finalComps: any = { TGS: null, UH: null, UTS: null, SAJ: null };
-                    
-                    const totalAsli = d.presentKeys.reduce((acc: number, k: string) => acc + d.subAsli[k], 0);
-                    
-                    let sumFinal = 0;
-                    d.presentKeys.forEach((k: string) => {
-                        let compDelta = 0;
-                        if (totalAsli === 0) {
-                            compDelta = delta;
-                        } else {
-                            const totalDelta = delta * d.presentKeys.length;
-                            compDelta = totalDelta * (d.subAsli[k] / totalAsli);
-                        }
-                        
-                        finalComps[k] = Math.round(d.tempComps[k] + compDelta);
-                        sumFinal += finalComps[k];
-                    });
-                    
-                    const targetSum = d.finalKatrol * d.presentKeys.length;
-                    let diff = targetSum - sumFinal;
-                    
-                    if (diff !== 0 && d.presentKeys.length > 0) {
-                        let sortedKeys = [...d.presentKeys].sort((a, b) => finalComps[a] - finalComps[b]);
-                        let adjustKey = sortedKeys[Math.floor(sortedKeys.length / 2)];
-                        finalComps[adjustKey] += diff;
-                    }
-                    
-                    const st = newStudents.find((s: any) => s.id === d.studentId);
-                    if (st) {
-                        st.subjects[subKey] = { ...st.subjects[subKey], ...finalComps };
-                    }
-                });
+                studentsNaik[i].rank = currentRank;
             }
-            
-            // --- BAGIAN B: SISWA TIDAK NAIK KELAS ---
-            studentsTidakNaik.forEach(student => {
+        }
+        
+        const N = currentRank; // max rank
+
+        // 1c. Hitung TARGET_NR_i
+        studentsNaik.forEach(student => {
+            if (N <= 1) {
+                student.targetNR = 79;
+            } else {
+                student.targetNR = Math.round(86 - ((student.rank - 1) / (N - 1)) * 15);
+            }
+        });
+
+        // 2. Katrol Komponen
+        const applyVariation = (target: number, keys: string[], varRange: number) => {
+            let comps: any = {};
+            keys.forEach(k => comps[k] = target);
+            if (keys.length > 1) {
+                let amount = Math.floor(Math.random() * varRange) + 1;
+                let shuffled = [...keys].sort(() => Math.random() - 0.5);
+                comps[shuffled[0]] += amount;
+                comps[shuffled[1]] -= amount;
+            }
+            return comps;
+        };
+
+        studentsNaik.forEach(student => {
+            subjectsList.forEach((_, mId) => {
+                const subKey = `mapel_${mId}`;
                 const subAsli = student?.subjects?.[subKey] || { TGS: null, UH: null, UTS: null, SAJ: null };
                 const presentKeys = ['TGS', 'UH', 'UTS', 'SAJ'].filter(k => subAsli[k] !== null && subAsli[k] !== undefined);
                 
                 if (presentKeys.length === 0) return;
                 
-                const targetScore = Math.round((50 + Math.random() * 10) * 10) / 10;
+                const finalComps = applyVariation(student.targetNR, presentKeys, 1);
+                student.subjects[subKey] = { ...subAsli, ...finalComps };
+            });
+        });
+
+        // BAGIAN B - SISWA TIDAK NAIK KELAS
+        let usedTargets = new Set<number>();
+        studentsTidakNaik.forEach(student => {
+            let targetNR = 50 + Math.floor(Math.random() * 11);
+            while (usedTargets.has(targetNR) && usedTargets.size < 11) {
+                targetNR = 50 + Math.floor(Math.random() * 11);
+            }
+            usedTargets.add(targetNR);
+            student.targetNR = targetNR;
+            
+            subjectsList.forEach((_, mId) => {
+                const subKey = `mapel_${mId}`;
+                const subAsli = student?.subjects?.[subKey] || { TGS: null, UH: null, UTS: null, SAJ: null };
+                const presentKeys = ['TGS', 'UH', 'UTS', 'SAJ'].filter(k => subAsli[k] !== null && subAsli[k] !== undefined);
                 
-                let sum = 0;
-                const distributed: any = { TGS: null, UH: null, UTS: null, SAJ: null };
-                presentKeys.forEach((k, i) => {
-                     if (i === presentKeys.length - 1) {
-                         distributed[k] = Math.round(((targetScore * presentKeys.length) - sum) * 10) / 10;
-                     } else {
-                         const noise = Math.round((Math.random() * 4 - 2) * 10) / 10;
-                         const val = Math.round((targetScore + noise) * 10) / 10;
-                         distributed[k] = val;
-                         sum += val;
-                     }
-                });
+                if (presentKeys.length === 0) return;
                 
-                const st = newStudents.find((s: any) => s.id === student.id);
-                if (st) {
-                    st.subjects[subKey] = { ...st.subjects[subKey], ...distributed };
-                }
+                const finalComps = applyVariation(student.targetNR, presentKeys, 2);
+                student.subjects[subKey] = { ...subAsli, ...finalComps };
             });
         });
         
