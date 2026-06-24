@@ -15,7 +15,9 @@ app.use(express.json());
 app.use(cors());
 
 // Ensure the specific email is admin
+let adminSetupDone = false;
 const setupAdmin = async () => {
+    if (adminSetupDone || !db) return;
     try {
         await initDb();
         const adminEmail = 'rifkifadhilatilaqli@gmail.com';
@@ -34,12 +36,11 @@ const setupAdmin = async () => {
             await db.update(users).set({ is_admin: true }).where(eq(users.email, adminEmail));
             console.log("Updated admin user privileges");
         }
+        adminSetupDone = true;
     } catch (e) {
         console.error("Failed to setup admin user", e);
     }
 };
-
-setupAdmin();
 
 // --- Authentication Middleware ---
 const authenticateToken = (req: express.Request, res: express.Response, next: express.NextFunction) => {
@@ -61,11 +62,22 @@ const authenticateToken = (req: express.Request, res: express.Response, next: ex
   });
 };
 
+const checkDb = (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  if (!db) {
+    res.status(500).json({ error: "Database belum terhubung. Silakan klik menu 'Storage' di Vercel Dashboard dan buat Postgres database. Vercel akan otomatis menyambungkan database ke aplikasi ini." });
+    return;
+  }
+  next();
+};
+
+app.use('/api', checkDb);
+
 // --- API Routes ---
 
 // Register
 app.post("/api/register", async (req, res) => {
   try {
+    await setupAdmin();
     const { name, email, password } = req.body;
     if (!name || !email || !password) {
         res.status(400).json({ error: "All fields are required." });
@@ -102,6 +114,7 @@ app.post("/api/register", async (req, res) => {
 // Login
 app.post("/api/login", async (req, res) => {
   try {
+    await setupAdmin();
     const { email, password } = req.body;
     const records = await db.select().from(users).where(eq(users.email, email));
     

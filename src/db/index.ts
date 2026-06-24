@@ -14,24 +14,33 @@ export const createPool = () => {
     });
   }
 
-  return new Pool({
-    host: process.env.SQL_HOST,
-    user: process.env.SQL_USER,
-    password: process.env.SQL_PASSWORD,
-    database: process.env.SQL_DB_NAME,
-    connectionTimeoutMillis: 15000,
-  });
+  if (process.env.SQL_HOST) {
+    return new Pool({
+      host: process.env.SQL_HOST,
+      user: process.env.SQL_USER,
+      password: process.env.SQL_PASSWORD,
+      database: process.env.SQL_DB_NAME,
+      connectionTimeoutMillis: 15000,
+    });
+  }
+
+  // Fallback for Vercel if database is not connected
+  console.warn("No database configuration found. Please connect Vercel Postgres.");
+  return null;
 };
 
 export const pool = createPool();
 
-pool.on('error', (err) => {
-  console.error('Unexpected error on idle SQL pool client:', err);
-});
+if (pool) {
+  pool.on('error', (err) => {
+    console.error('Unexpected error on idle SQL pool client:', err);
+  });
+}
 
-export const db = drizzle(pool, { schema });
+export const db = pool ? drizzle(pool, { schema }) : null as any;
 
 export const initDb = async () => {
+  if (!pool) return;
   try {
     // Auto-create tables if they don't exist
     await pool.query(`

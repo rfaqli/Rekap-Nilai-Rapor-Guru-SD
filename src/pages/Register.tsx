@@ -25,8 +25,17 @@ export function Register() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, email, password }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
+      
+      let data;
+      const contentType = res.headers.get("content-type");
+      if (contentType && contentType.includes("application/json")) {
+        data = await res.json();
+      } else {
+        const text = await res.text();
+        throw new Error(text.includes("server error") ? "Gagal terhubung ke database. Jika di Vercel, pastikan Vercel Postgres sudah dibuat." : "Terjadi kesalahan pada server. (Server Error)");
+      }
+
+      if (!res.ok) throw new Error(data.error || "Gagal mendaftar.");
       navigate('/login');
     } catch (err: any) {
       setError(err.message);
