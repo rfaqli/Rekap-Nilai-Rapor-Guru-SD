@@ -5,7 +5,7 @@ import bcrypt from 'bcryptjs';
 
 export const createPool = () => {
   // Try to find any environment variable that looks like a postgres connection string
-  let url = process.env.POSTGRES_URL || process.env.DATABASE_URL || process.env.STORAGE_URL || process.env.STORAGE_DATABASE_URL || process.env.NEON_DATABASE_URL;
+  let url = process.env.POSTGRES_URL_NON_POOLING || process.env.POSTGRES_URL || process.env.DATABASE_URL || process.env.STORAGE_URL || process.env.STORAGE_DATABASE_URL || process.env.NEON_DATABASE_URL;
   
   if (!url) {
     const postgresKeys = Object.keys(process.env).filter(k => 
@@ -25,6 +25,8 @@ export const createPool = () => {
         rejectUnauthorized: false
       },
       connectionTimeoutMillis: 5000,
+      max: 1, // Critical for Serverless environments like Vercel
+      idleTimeoutMillis: 10000,
     });
   }
 
