@@ -2,9 +2,9 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LogOut, Plus, Menu, X, Save, Trash2, Edit2, BookOpen, ZoomIn, ZoomOut } from 'lucide-react';
 import { fetchWithAuth } from '../lib/api';
-import { safeGetItem, safeRemoveItem } from '../lib/storage';
 import { Project } from '../types';
 import { ProjectView } from '../components/ProjectView';
+import { useAuth } from '../contexts/AuthContext';
 
 export function Dashboard() {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -12,32 +12,25 @@ export function Dashboard() {
   const [activeProjectId, setActiveProjectId] = useState<number | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(1);
-  const [user, setUser] = useState<any>(null);
+  const { user, logout } = useAuth();
 
   const navigate = useNavigate();
 
   useEffect(() => {
-    const userData = safeGetItem('user');
-    if (userData && userData !== 'undefined' && userData !== 'null') {
-      try {
-        setUser(JSON.parse(userData) || {});
-      } catch (e) {}
-    }
     loadProjects();
   }, []);
 
   const loadProjects = async () => {
     try {
-      const data = await fetchWithAuth('/projects');
+      const data = await fetchWithAuth('/projects') as Project[];
       setProjects(data);
     } catch (err) {
       // Ignore
     }
   };
 
-  const handleLogout = () => {
-    safeRemoveItem('token');
-    safeRemoveItem('user');
+  const handleLogout = async () => {
+    await logout();
     navigate('/login');
   };
 
@@ -114,7 +107,7 @@ export function Dashboard() {
             subject_count: newSubjects,
             data: initialData
         })
-      });
+      }) as { id: number };
       setIsCreating(false);
       setActiveProjectId(res.id);
       loadProjects();

@@ -9,21 +9,26 @@ export function Register() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     if (password !== confirmPassword) {
-      setError('Password dan Konfirmasi Password tidak cocok.');
+      setError("Password tidak cocok!");
       return;
     }
+    
+    setIsLoading(true);
+    setError('');
+
     try {
-      const res = await fetch(`${API_URL}/register`, {
+      const res = await fetch(`${API_URL}/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, email, password }),
+        credentials: 'omit'
       });
       
       let data;
@@ -32,13 +37,16 @@ export function Register() {
         data = await res.json();
       } else {
         const text = await res.text();
-        throw new Error(text.includes("server error") ? "Gagal terhubung ke database. Jika di Vercel, pastikan Vercel Postgres sudah dibuat." : "Terjadi kesalahan pada server. (Server Error)");
+        throw new Error(text.includes("server error") ? "Gagal terhubung ke database. Pastikan Vercel Postgres sudah dibuat." : "Terjadi kesalahan pada server.");
       }
 
-      if (!res.ok) throw new Error(data.error || "Gagal mendaftar.");
+      if (!res.ok || !data.success) throw new Error(data.error || "Gagal daftar.");
+      
       navigate('/login');
     } catch (err: any) {
-      setError(err.message);
+      setError(err.message || "Gagal daftar, silakan coba lagi.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -52,11 +60,8 @@ export function Register() {
              <BookOpen className="h-8 w-8 text-white" />
           </div>
           <h2 className="text-2xl font-bold text-brand-red uppercase">
-            Daftar Akun Guru
+            Daftar Guru
           </h2>
-          <p className="text-xs text-gray-500 mt-1">
-            Mesin Pengkatrol Nilai by Aqli
-          </p>
         </div>
 
         <form className="space-y-4" onSubmit={handleRegister}>
@@ -66,11 +71,12 @@ export function Register() {
             </div>
           )}
           <div className="space-y-1">
-            <label className="block text-xs font-bold text-gray-900">Nama Guru</label>
+            <label className="block text-xs font-bold text-gray-900">Nama Lengkap</label>
             <input
-              type="text" required placeholder="Bapak Budi"
+              type="text" required placeholder="Siti Nurhaliza, S.Pd"
               value={name} onChange={(e) => setName(e.target.value)}
               className="w-full p-2 border rounded focus:ring-2 focus:ring-brand-red outline-none shadow-sm text-sm"
+              disabled={isLoading}
             />
           </div>
           <div className="space-y-1">
@@ -79,6 +85,7 @@ export function Register() {
               type="email" required placeholder="email@sd-indonesia.sch.id"
               value={email} onChange={(e) => setEmail(e.target.value)}
               className="w-full p-2 border rounded focus:ring-2 focus:ring-brand-red outline-none shadow-sm text-sm"
+              disabled={isLoading}
             />
           </div>
           <div className="space-y-1">
@@ -88,6 +95,7 @@ export function Register() {
                 type={showPassword ? 'text' : 'password'} required placeholder="••••••••"
                 value={password} onChange={(e) => setPassword(e.target.value)}
                 className="w-full p-2 border rounded focus:ring-2 focus:ring-brand-red outline-none shadow-sm text-sm pr-10"
+                disabled={isLoading}
               />
               <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600 focus:outline-none">
                 {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -96,27 +104,24 @@ export function Register() {
           </div>
           <div className="space-y-1">
             <label className="block text-xs font-bold text-gray-900">Konfirmasi Password</label>
-            <div className="relative">
-              <input
-                type={showConfirmPassword ? 'text' : 'password'} required placeholder="••••••••"
-                value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)}
-                className="w-full p-2 border rounded focus:ring-2 focus:ring-brand-red outline-none shadow-sm text-sm pr-10"
-              />
-              <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600 focus:outline-none">
-                {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
-            </div>
+            <input
+              type={showPassword ? 'text' : 'password'} required placeholder="••••••••"
+              value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)}
+              className="w-full p-2 border rounded focus:ring-2 focus:ring-brand-red outline-none shadow-sm text-sm"
+              disabled={isLoading}
+            />
           </div>
           <div className="pt-2">
             <button
               type="submit"
-              className="w-full bg-brand-red text-white font-bold py-3 rounded-lg shadow-lg hover:bg-brand-maroon transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-red"
+              disabled={isLoading}
+              className={`w-full bg-brand-red text-white font-bold py-3 rounded-lg shadow-lg hover:bg-brand-maroon transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-red ${isLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
             >
-              DAFTAR AKUN
+              {isLoading ? 'MEMPROSES...' : 'DAFTAR SEKARANG'}
             </button>
           </div>
           <p className="text-center text-[10px] text-gray-400 mt-4">
-            Sudah punya akun? <Link to="/login" className="text-brand-red font-bold hover:underline">Masuk di sini</Link>
+            Sudah punya akun? <Link to="/login" className="text-brand-red font-bold hover:underline">Masuk Aplikasi</Link>
           </p>
         </form>
       </div>

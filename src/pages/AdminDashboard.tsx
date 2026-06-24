@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Users, LayoutDashboard, LogOut } from 'lucide-react';
-import { safeGetItem, safeRemoveItem } from '../lib/storage';
+import { useAuth } from '../contexts/AuthContext';
+import { API_URL } from '../lib/api';
 
 export function AdminDashboard() {
   const navigate = useNavigate();
+  const { logout } = useAuth();
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -19,9 +21,8 @@ export function AdminDashboard() {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const token = safeGetItem('token');
-        const res = await fetch('/api/admin/users', {
-          headers: { Authorization: `Bearer ${token}` }
+        const res = await fetch(`${API_URL}/admin/users`, {
+          credentials: 'include'
         });
         if (res.ok) {
           const data = await res.json();
@@ -36,9 +37,8 @@ export function AdminDashboard() {
     fetchUsers();
   }, []);
 
-  const handleLogout = () => {
-    safeRemoveItem('token');
-    safeRemoveItem('user');
+  const handleLogout = async () => {
+    await logout();
     navigate('/login');
   };
 

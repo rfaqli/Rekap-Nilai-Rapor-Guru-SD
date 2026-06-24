@@ -3,11 +3,14 @@ import { integer, pgTable, serial, text, timestamp, boolean } from 'drizzle-orm/
 
 export const users = pgTable('users', {
   id: serial('id').primaryKey(),
-  name: text('name').notNull(),
+  name: text('name').notNull().default('User'),
   email: text('email').unique().notNull(),
-  password_hash: text('password_hash').notNull(),
+  password: text('password'),
+  password_hash: text('password_hash'),
+  role: text('role').default('user').notNull(),
   is_admin: boolean('is_admin').default(false).notNull(),
-  created_at: timestamp('created_at').defaultNow().notNull(),
+  createdAt: timestamp('createdAt').defaultNow().notNull(),
+  created_at: timestamp('created_at').defaultNow(),
 });
 
 export const projects = pgTable('projects', {

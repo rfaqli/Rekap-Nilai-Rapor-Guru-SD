@@ -118,11 +118,22 @@ export const initDb = async () => {
         id SERIAL PRIMARY KEY,
         name TEXT NOT NULL,
         email TEXT UNIQUE NOT NULL,
-        password_hash TEXT NOT NULL,
+        password_hash TEXT,
         is_admin BOOLEAN DEFAULT false NOT NULL,
         created_at TIMESTAMP DEFAULT NOW() NOT NULL
       );
     `);
+
+    // Safely add new columns if they don't exist
+    try {
+      await pool.query(`ALTER TABLE users ADD COLUMN password TEXT;`);
+    } catch (e) {}
+    try {
+      await pool.query(`ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'user' NOT NULL;`);
+    } catch (e) {}
+    try {
+      await pool.query(`ALTER TABLE users ADD COLUMN "createdAt" TIMESTAMP DEFAULT NOW() NOT NULL;`);
+    } catch (e) {}
 
     await pool.query(`
       CREATE TABLE IF NOT EXISTS projects (
@@ -136,20 +147,6 @@ export const initDb = async () => {
         updated_at TIMESTAMP DEFAULT NOW() NOT NULL
       );
     `);
-
-    // Auto-seed admin account
-    const adminEmail = 'rifkifadhilatilaqli@gmail.com';
-    const adminPassword = 'Admin4321';
-    
-    const { rows } = await pool.query('SELECT * FROM users WHERE email = $1', [adminEmail]);
-    if (rows.length === 0) {
-      const hash = await bcrypt.hash(adminPassword, 10);
-      await pool.query(
-        'INSERT INTO users (name, email, password_hash, is_admin) VALUES ($1, $2, $3, $4)',
-        ['Admin', adminEmail, hash, true]
-      );
-      console.log('Admin account created successfully.');
-    }
   } catch (err) {
     console.error('Error initializing database:', err);
   }

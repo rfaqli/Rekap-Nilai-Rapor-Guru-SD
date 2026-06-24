@@ -1,13 +1,7 @@
-import { safeGetItem, safeRemoveItem } from './storage';
-
 export const API_URL = '/api';
 
 export const fetchWithAuth = async (endpoint: string, options: RequestInit = {}) => {
-    const token = safeGetItem('token');
     const headers = new Headers(options.headers || {});
-    if (token) {
-        headers.set('Authorization', `Bearer ${token}`);
-    }
     if (!headers.has('Content-Type')) {
         headers.set('Content-Type', 'application/json');
     }
@@ -15,16 +9,15 @@ export const fetchWithAuth = async (endpoint: string, options: RequestInit = {})
     const response = await fetch(`${API_URL}${endpoint}`, {
         ...options,
         headers,
+        credentials: 'include'
     });
 
     if (response.status === 401 || response.status === 403) {
-        safeRemoveItem('token');
-        safeRemoveItem('user');
         window.location.href = '/login';
         throw new Error('Unauthorized');
     }
 
-    let data = {};
+    let data: any = {};
     const text = await response.text();
     try {
         if (text) {
@@ -35,7 +28,7 @@ export const fetchWithAuth = async (endpoint: string, options: RequestInit = {})
     }
     
     if (!response.ok) {
-        throw new Error((data as any).error || 'Something went wrong');
+        throw new Error(data?.error || 'Something went wrong');
     }
 
     return data;

@@ -55,7 +55,7 @@ export function ProjectView({ projectId }: { projectId: number }) {
     const loadProject = useCallback(async () => {
         setLoading(true);
         try {
-            const data = await fetchWithAuth(`/projects/${projectId}`);
+            const data = await fetchWithAuth(`/projects/${projectId}`) as Project;
             setProject(data);
             setKatrolData(null); // reset katrol view on load
         } catch (err) {
@@ -153,7 +153,7 @@ export function ProjectView({ projectId }: { projectId: number }) {
                     const subKey = `mapel_${mId}`;
                     const subAsli = student?.subjects?.[subKey] || { TGS: null, UH: null, UTS: null, SAJ: null };
                     
-                    const componentsPresent = Object.keys(subAsli).filter(k => subAsli[k] !== null);
+                    const componentsPresent = Object.keys(subAsli).filter(k => subAsli[k as keyof typeof subAsli] !== null);
                     if (componentsPresent.length === 0) {
                         newSubjects[subKey] = { ...subAsli };
                         return;
