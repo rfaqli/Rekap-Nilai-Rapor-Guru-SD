@@ -269,8 +269,14 @@ export function ProjectView({ projectId }: { projectId: number }) {
 
                                         let newKatrolLower = data[higherIndex].katrol - minGap;
                                         if (newKatrolLower < 71) {
-                                            data[higherIndex].katrol = Math.min(86, 71 + minGap);
-                                            data[lowerIndex].katrol = data[higherIndex].katrol - minGap;
+                                            let proposedHigher = data[higherIndex].katrol + (71 - newKatrolLower);
+                                            if (proposedHigher > 86) {
+                                                data[higherIndex].katrol = 86;
+                                                data[lowerIndex].katrol = 71;
+                                            } else {
+                                                data[higherIndex].katrol = proposedHigher;
+                                                data[lowerIndex].katrol = 71;
+                                            }
                                         } else {
                                             data[lowerIndex].katrol = newKatrolLower;
                                         }
