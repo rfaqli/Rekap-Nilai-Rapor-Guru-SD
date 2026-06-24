@@ -234,6 +234,64 @@ export function ProjectView({ projectId }: { projectId: number }) {
                     }
                 }
                 
+                // --- PROPORTIONAL GAP PRESERVATION ---
+                let baselineSum = 0;
+                let baselineCount = 0;
+                for (let i = 0; i < data.length; i++) {
+                    for (let j = i + 1; j < data.length; j++) {
+                        let gapAsli = Math.abs(data[i].asli - data[j].asli);
+                        if (gapAsli >= 3) {
+                            let gapKatrol = Math.abs(data[i].katrol - data[j].katrol);
+                            baselineSum += gapKatrol / gapAsli;
+                            baselineCount++;
+                        }
+                    }
+                }
+                const baselineRatio = baselineCount > 0 ? baselineSum / baselineCount : 0;
+
+                if (baselineRatio > 0) {
+                    for (let i = 0; i < data.length; i++) {
+                        for (let j = i + 1; j < data.length; j++) {
+                            let gapAsli = Math.abs(data[i].asli - data[j].asli);
+                            if (gapAsli >= 3) {
+                                let gapKatrol = Math.abs(data[i].katrol - data[j].katrol);
+                                let ratio = gapKatrol / gapAsli;
+                                
+                                if (ratio < 0.25 * baselineRatio) {
+                                    let minGap = Math.ceil(gapAsli * baselineRatio * 0.5);
+                                    if (gapKatrol < minGap) {
+                                        let higherIndex = j;
+                                        let lowerIndex = i;
+                                        if (data[i].katrol > data[j].katrol) {
+                                            higherIndex = i;
+                                            lowerIndex = j;
+                                        }
+
+                                        let newKatrolLower = data[higherIndex].katrol - minGap;
+                                        if (newKatrolLower < 71) {
+                                            data[higherIndex].katrol = Math.min(86, 71 + minGap);
+                                            data[lowerIndex].katrol = data[higherIndex].katrol - minGap;
+                                        } else {
+                                            data[lowerIndex].katrol = newKatrolLower;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Re-validate global ranking after gap adjustments
+                for (let i = 1; i < data.length; i++) {
+                    if (data[i].asli > data[i-1].asli) {
+                        if (data[i].katrol <= data[i-1].katrol) {
+                            data[i].katrol = data[i-1].katrol + 1;
+                        }
+                    } else if (data[i].asli === data[i-1].asli) {
+                        data[i].katrol = data[i-1].katrol;
+                    }
+                }
+
                 // Langkah 4: Clamping
                 let maxK = Math.max(...data.map(d => d.katrol));
                 if (maxK > 86) {
