@@ -34,10 +34,10 @@ const katrolComponent = (val: number | null): number | null => {
     if (val === null) return null;
     let target = 0;
     
-    if (val <= 40) target = 71 + ((val - 0) / 40) * 3; // 71 - 74
-    else if (val <= 60) target = 74 + ((val - 40) / 20) * 4; // 74 - 78
-    else if (val <= 80) target = 78 + ((val - 60) / 20) * 4; // 78 - 82
-    else target = 82 + ((val - 80) / 20) * 4; // 82 - 86
+    if (val <= 40) target = 60 + ((val - 0) / (40 - 0)) * (70 - 60);
+    else if (val <= 60) target = 71 + ((val - 41) / (60 - 41)) * (78 - 71);
+    else if (val <= 80) target = 79 + ((val - 61) / (80 - 61)) * (85 - 79);
+    else target = 86 + ((val - 81) / (100 - 81)) * (100 - 86);
     
     return Math.round(target);
 };
@@ -148,7 +148,6 @@ export function ProjectView({ projectId }: { projectId: number }) {
             
             if (student.tidakNaikKelas) {
                 // Generates random 50-60 target score for the OVERALL average for EACH mapel.
-                // Wait, requirements say: "Generate sebuah angka acak (random) sebagai Nilai Rapor Mapel_Katrol final"
                 subjectsList.forEach((_, mId) => {
                     const subKey = `mapel_${mId}`;
                     const subAsli = student?.subjects?.[subKey] || { TGS: null, UH: null, UTS: null, SAJ: null };
@@ -159,7 +158,7 @@ export function ProjectView({ projectId }: { projectId: number }) {
                         return;
                     }
                     
-                    const targetScore = Math.round((50 + Math.random() * 10) * 10) / 10; // decimal
+                    const targetScore = Math.round((50 + Math.random() * 10) * 10) / 10; // decimal 50-60
                     const count = componentsPresent.length;
                     
                     // Distribute around targetScore
@@ -167,12 +166,13 @@ export function ProjectView({ projectId }: { projectId: number }) {
                     const distributed: any = {};
                     componentsPresent.forEach((k, i) => {
                          if (i === count - 1) {
-                             distributed[k] = (targetScore * count) - sum;
+                             distributed[k] = Math.round(((targetScore * count) - sum) * 10) / 10;
                          } else {
                              // small noise
                              const noise = Math.round((Math.random() * 4 - 2) * 10) / 10;
-                             distributed[k] = targetScore + noise;
-                             sum += distributed[k];
+                             const val = Math.round((targetScore + noise) * 10) / 10;
+                             distributed[k] = val;
+                             sum += val;
                          }
                     });
                     
@@ -181,7 +181,7 @@ export function ProjectView({ projectId }: { projectId: number }) {
                     newSubjects[subKey] = finalSubData;
                 });
             } else {
-                 // Piecewise Katrol
+                 // Piecewise Katrol & Clamping
                  subjectsList.forEach((_, mId) => {
                      const subKey = `mapel_${mId}`;
                      const subAsli = student?.subjects?.[subKey] || { TGS: null, UH: null, UTS: null, SAJ: null };
@@ -190,6 +190,19 @@ export function ProjectView({ projectId }: { projectId: number }) {
                      let k_UH = katrolComponent(subAsli.UH);
                      let k_UTS = katrolComponent(subAsli.UTS);
                      let k_SAJ = katrolComponent(subAsli.SAJ);
+                     
+                     const present = [k_TGS, k_UH, k_UTS, k_SAJ].filter(v => v !== null) as number[];
+                     if (present.length > 0) {
+                         const avg = present.reduce((a, b) => a + b, 0) / present.length;
+                         if (avg < 71 || avg > 86) {
+                             const targetAvg = Math.max(71, Math.min(86, avg));
+                             const shift = targetAvg - avg;
+                             if (k_TGS !== null) k_TGS = Math.round(k_TGS + shift);
+                             if (k_UH !== null) k_UH = Math.round(k_UH + shift);
+                             if (k_UTS !== null) k_UTS = Math.round(k_UTS + shift);
+                             if (k_SAJ !== null) k_SAJ = Math.round(k_SAJ + shift);
+                         }
+                     }
                      
                      let tempSub = { TGS: k_TGS, UH: k_UH, UTS: k_UTS, SAJ: k_SAJ };
                      newSubjects[subKey] = tempSub;
