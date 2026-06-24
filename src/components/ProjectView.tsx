@@ -143,7 +143,12 @@ export function ProjectView({ projectId }: { projectId: number }) {
 
     // --- KATROL EXECUTION ---
     const handleKatrol = () => {
-        const newStudents = students.map(student => {
+        let newStudents = JSON.parse(JSON.stringify(students));
+        
+        let mapelData: Record<string, any[]> = {};
+        subjectsList.forEach((_, mId) => { mapelData[`mapel_${mId}`] = []; });
+
+        newStudents.forEach((student: any) => {
             const newSubjects: any = {};
             
             if (student.tidakNaikKelas) {
@@ -181,7 +186,7 @@ export function ProjectView({ projectId }: { projectId: number }) {
                     newSubjects[subKey] = finalSubData;
                 });
             } else {
-                 // Piecewise Katrol & Clamping
+                 // Piecewise Katrol Raw
                  subjectsList.forEach((_, mId) => {
                      const subKey = `mapel_${mId}`;
                      const subAsli = student?.subjects?.[subKey] || { TGS: null, UH: null, UTS: null, SAJ: null };
@@ -191,30 +196,92 @@ export function ProjectView({ projectId }: { projectId: number }) {
                      let k_UTS = katrolComponent(subAsli.UTS);
                      let k_SAJ = katrolComponent(subAsli.SAJ);
                      
-                     const present = [k_TGS, k_UH, k_UTS, k_SAJ].filter(v => v !== null) as number[];
-                     if (present.length > 0) {
-                         const avg = present.reduce((a, b) => a + b, 0) / present.length;
-                         if (avg < 71 || avg > 86) {
-                             const targetAvg = Math.max(71, Math.min(86, avg));
-                             const shift = targetAvg - avg;
-                             if (k_TGS !== null) k_TGS = Math.round(k_TGS + shift);
-                             if (k_UH !== null) k_UH = Math.round(k_UH + shift);
-                             if (k_UTS !== null) k_UTS = Math.round(k_UTS + shift);
-                             if (k_SAJ !== null) k_SAJ = Math.round(k_SAJ + shift);
-                         }
-                     }
-                     
                      let tempSub = { TGS: k_TGS, UH: k_UH, UTS: k_UTS, SAJ: k_SAJ };
+                     
+                     const present = ['TGS', 'UH', 'UTS', 'SAJ'].filter(k => subAsli[k] !== null && subAsli[k] !== undefined);
+                     if (present.length > 0) {
+                         const asliAvg = present.reduce((acc, k) => acc + subAsli[k], 0) / present.length;
+                         const rawKatrolAvg = present.reduce((acc, k) => acc + (tempSub as any)[k], 0) / present.length;
+                         
+                         mapelData[subKey].push({
+                             studentId: student.id,
+                             asli: asliAvg,
+                             katrol: Math.round(rawKatrolAvg), // use rounded average as base for rank spacing
+                             compsKatrol: tempSub,
+                         });
+                     }
                      newSubjects[subKey] = tempSub;
                  });
             }
-            
-            return {
-                ...student,
-                subjects: newSubjects
-            };
+            student.subjects = newSubjects;
         });
-        
+
+        // --- POST-PROCESSING: Rank Preservation & Backpropagation ---
+        subjectsList.forEach((_, mId) => {
+            const subKey = `mapel_${mId}`;
+            let data = mapelData[subKey];
+            if (data && data.length > 0) {
+                // Langkah 1, 2, 3: Sort by Asli ascending and ensure global ranking
+                data.sort((a, b) => a.asli - b.asli);
+                
+                for (let i = 1; i < data.length; i++) {
+                    if (data[i].asli > data[i-1].asli) {
+                        if (data[i].katrol <= data[i-1].katrol) {
+                            data[i].katrol = data[i-1].katrol + 1;
+                        }
+                    } else if (data[i].asli === data[i-1].asli) {
+                        data[i].katrol = data[i-1].katrol;
+                    }
+                }
+                
+                // Langkah 4: Clamping
+                let maxK = Math.max(...data.map(d => d.katrol));
+                if (maxK > 86) {
+                    const diff = maxK - 86;
+                    data.forEach(d => {
+                        d.katrol -= diff;
+                        if (d.katrol < 71) d.katrol = 71;
+                    });
+                } else {
+                    data.forEach(d => {
+                        if (d.katrol < 71) d.katrol = 71;
+                    });
+                }
+                
+                // Langkah 5: Backpropagate to components
+                data.forEach(d => {
+                    const finalAvg = d.katrol;
+                    const keys = ['TGS', 'UH', 'UTS', 'SAJ'].filter(k => d.compsKatrol[k] !== null && d.compsKatrol[k] !== undefined);
+                    if (keys.length === 0) return;
+                    
+                    const rawAvg = keys.reduce((sum, k) => sum + d.compsKatrol[k], 0) / keys.length;
+                    const delta = finalAvg - rawAvg;
+                    
+                    let newComps: any = { TGS: null, UH: null, UTS: null, SAJ: null };
+                    let sumNew = 0;
+                    
+                    keys.forEach(k => {
+                        newComps[k] = Math.round(d.compsKatrol[k] + delta);
+                        sumNew += newComps[k];
+                    });
+                    
+                    const targetSum = Math.round(finalAvg * keys.length);
+                    let diff = targetSum - sumNew;
+                    
+                    if (diff !== 0 && keys.length > 0) {
+                        const adjustKey = keys[Math.floor(keys.length / 2)];
+                        newComps[adjustKey] += diff;
+                    }
+                    
+                    // Assign back to student
+                    const st = newStudents.find((s: any) => s.id === d.studentId);
+                    if (st) {
+                        st.subjects[subKey] = newComps;
+                    }
+                });
+            }
+        });
+
         setKatrolData({ subjectsList, students: newStudents });
     };
     
