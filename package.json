@@ -2,10 +2,10 @@
   "name": "react-example",
   "private": true,
   "version": "0.0.0",
-  "type": "module",
   "scripts": {
     "dev": "tsx server.ts",
     "build": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
+    "vercel-build": "vite build",
     "start": "node dist/server.cjs",
     "clean": "rm -rf dist server.js server.cjs",
     "lint": "tsc --noEmit"
@@ -44,6 +44,7 @@
     "@types/pg": "^8.20.0",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
+    "@vercel/node": "^5.8.19",
     "autoprefixer": "^10.4.21",
     "drizzle-kit": "^0.31.10",
     "esbuild": "^0.25.0",

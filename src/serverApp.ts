@@ -3,7 +3,7 @@ import path from "path";
 import cors from "cors";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import { db, initDb } from "./db/index";
+import { db, initDb, getDb, getPool } from "./db/index";
 import { users, projects } from "./db/schema";
 import { eq, desc, and, sum, sql, count } from "drizzle-orm";
 
@@ -16,15 +16,16 @@ app.use(cors());
 // Ensure the specific email is admin
 let adminSetupDone = false;
 const setupAdmin = async () => {
-    if (adminSetupDone || !db) return;
+    const dbInstance = getDb();
+    if (adminSetupDone || !dbInstance) return;
     try {
         await initDb();
         const adminEmail = 'rifkifadhilatilaqli@gmail.com';
-        const existingAdmins = await db.select().from(users).where(eq(users.email, adminEmail));
+        const existingAdmins = await dbInstance.select().from(users).where(eq(users.email, adminEmail));
         
         if (existingAdmins.length === 0) {
             const hash = await bcrypt.hash('Admin4321', 10);
-            await db.insert(users).values({
+            await dbInstance.insert(users).values({
                 name: 'Super Admin',
                 email: adminEmail,
                 password_hash: hash,
@@ -32,7 +33,7 @@ const setupAdmin = async () => {
             });
             console.log("Created admin user");
         } else if (!existingAdmins[0].is_admin) {
-            await db.update(users).set({ is_admin: true }).where(eq(users.email, adminEmail));
+            await dbInstance.update(users).set({ is_admin: true }).where(eq(users.email, adminEmail));
             console.log("Updated admin user privileges");
         }
         adminSetupDone = true;
@@ -62,13 +63,11 @@ const authenticateToken = (req: express.Request, res: express.Response, next: ex
 };
 
 const checkDb = (req: express.Request, res: express.Response, next: express.NextFunction) => {
-  if (!db) {
-    const keys = Object.keys(process.env).filter(k => 
-      k.includes('URL') || k.includes('POSTGRES') || k.includes('DATABASE') || 
-      k.includes('STORAGE') || k.includes('NEON') || k.includes('PG')
-    );
-    res.status(500).json({ 
-      error: `Database belum terhubung. Vercel env keys yang tersedia: ${keys.join(', ')}. Pastikan Vercel Postgres/Neon sudah dibuat dan Prefix environment variables sesuai.` 
+  const dbInstance = getDb();
+  if (!dbInstance) {
+    res.status(500).json({
+      error: "Database tidak terhubung.",
+      hint: "Periksa environment variable POSTGRES_URL di Vercel Dashboard"
     });
     return;
   }
@@ -79,15 +78,31 @@ app.use('/api', checkDb);
 
 // Health check endpoint
 app.get('/api/health', async (req, res) => {
+  const dbInstance = getDb();
+  const envCheck = {
+    POSTGRES_URL: !!process.env.POSTGRES_URL,
+    POSTGRES_URL_NON_POOLING: !!process.env.POSTGRES_URL_NON_POOLING,
+    DATABASE_URL: !!process.env.DATABASE_URL,
+  };
+
+  if (!dbInstance) {
+    res.status(500).json({
+      status: 'error',
+      db: 'not_configured',
+      env: envCheck
+    });
+    return;
+  }
+
   try {
-    if (db) {
-      await db.execute(sql`SELECT 1`);
-      res.json({ status: 'ok', db: 'connected' });
-    } else {
-      res.json({ status: 'ok', db: 'not configured' });
-    }
+    await dbInstance.execute(sql`SELECT 1`);
+    res.json({ status: 'ok', db: 'connected', env: envCheck });
   } catch (err: any) {
-    res.status(500).json({ status: 'error', db: err.message });
+    res.status(500).json({
+      status: 'error',
+      db: err.message,
+      env: envCheck
+    });
   }
 });
 
